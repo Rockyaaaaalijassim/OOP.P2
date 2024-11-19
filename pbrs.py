@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-
 # تعريف الكورسات (Course)
 class AbstractCourse(ABC):
     @abstractmethod
