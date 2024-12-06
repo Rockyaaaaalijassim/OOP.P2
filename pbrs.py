@@ -1,76 +1,146 @@
-from abc import ABC, abstractmethod
+rom abc import ABC, abstractmethod
 
-# تعريف الكورسات (Course)
 class AbstractCourse(ABC):
     @abstractmethod
-    def create_course(self, name, code, credit_hours=3, max_students=25):
+    def create_course(self, name, code, credit_hours=3, max_students=25, priority="Normal", fee=0, level="Beginner", prerequisites=[]):
         pass
 
     @abstractmethod
-    def enroll_student(self):
+    def enroll_student(self, student):
         pass
 
     @abstractmethod
     def show_course(self):
         pass
 
+    @abstractmethod
+    def add_feedback(self, student, rating, comment):
+        pass
+
+    @abstractmethod
+    def show_feedback(self):
+        pass
 
 class Course(AbstractCourse):
-    def create_course(self, name, code, credit_hours=3, max_students=25):
+    def create_course(self, name, code, credit_hours=3, max_students=25, priority="Normal", fee=0, level="Beginner", prerequisites=[]):
         self.name = name
         self.code = code
         self.credit_hours = credit_hours
         self.max_students = max_students
+        self.priority = priority
+        self.fee = fee
+        self.level = level
         self.enrolled_students = 0
+        self.prerequisites = prerequisites
+        self.attendance = {}
+        self.waiting_list = []
+        self.feedback = []
+        self.instructor = None
 
-    def enroll_student(self):
+    def enroll_student(self, student):
+        # Check if the student has completed the prerequisites
+        if not all(prerequisite in [course.name for course in student.classes] for prerequisite in self.prerequisites):
+            return f"You need to complete the prerequisites for {self.name} first."
+
         if self.enrolled_students < self.max_students:
             self.enrolled_students += 1
-            return True  # التسجيل ناجح
+            student.classes.append(self)
+            return True
         else:
-            return False  # المادة ممتلئة
+            self.waiting_list.append(student)
+            return f"{self.name} is full. You have been added to the waiting list."
 
     def show_course(self):
-        return f"{self.name} ({self.code}), Credit Hours: {self.credit_hours}, Enrolled: {self.enrolled_students}/{self.max_students}"
+        return f"{self.name} ({self.code}), Level: {self.level}, Priority: {self.priority}, Credit Hours: {self.credit_hours}, Fee: ${self.fee}"
 
+    def add_feedback(self, student, rating, comment):
+        self.feedback.append({"student": student.name, "rating": rating, "comment": comment})
 
-# تعريف الطلاب (Student)
+    def show_feedback(self):
+        for feedback in self.feedback:
+            print(f"{feedback['student']} rated {feedback['rating']}/5: {feedback['comment']}")
+
 class Student:
-    id_counter = 1  # عدّاد داخلي
-    ID_PREFIX = "UOB-"  # رمز ثابت للمعرف
-
+    id_counter = 1
+    ID_PREFIX = "UOB-"
     def __init__(self):
         self.id = None
         self.name = None
         self.classes = []
         self.__grades = {}
-        self.max_classes = 5  # الحد الأقصى لعدد المواد
+        self.activity_log = []
+        self.max_classes = 5
+        self.fees_paid = False
 
     def set_student(self, name):
-        self.id = f"{Student.ID_PREFIX}{Student.id_counter:04d}"  # رقم ثابت متبوع بعداد بصيغة أربعة أرقام
-        Student.id_counter += 1  # زيادة العدّاد لكل طالب جديد
+        self.id = f"{Student.ID_PREFIX}{Student.id_counter:04d}"
+        Student.id_counter += 1
         self.name = name
-        self.__grades = {1: None, 2: None}
+        self.__grades = {}
 
     def enroll_in_class(self, course):
+        if not self.fees_paid:
+            return "Error: You cannot enroll in classes until fees are paid."
+
+        # Check for prerequisites
+        if not all(prerequisite in [course.name for course in self.classes] for prerequisite in course.prerequisites):
+            return f"You must complete prerequisites for {course.name} before enrolling."
+
         if len(self.classes) >= self.max_classes:
             return "Error: You have reached the maximum number of classes."
         elif course.code in [c.code for c in self.classes]:
             return f"Error: You are already enrolled in {course.code}."
         else:
-            success = course.enroll_student()
-            if success:
-                self.classes.append(course)
-                return f"Successfully enrolled in {course.name}!"
-            else:
-                return f"Error: {course.name} is full."
+            return course.enroll_student(self)
+
+    def log_activity(self, activity):
+        self.activity_log.append(activity)
+
+    def show_activity_log(self):
+        return "\n".join(self.activity_log)
+
+    def drop_class(self, course_code):
+        for course in self.classes:
+            if course.code == course_code:
+                self.classes.remove(course)
+                course.enrolled_students -= 1
+                self.log_activity(f"Dropped {course.name}.")
+                # If someone is on the waiting list, enroll the next student
+                if course.waiting_list:
+                    next_student = course.waiting_list.pop(0)
+                    next_student.enroll_in_class(course)
+                    next_student.log_activity(f"Enrolled in {course.name} from waiting list.")
+                return f"Successfully dropped {course.name}."
+        return "Error: Course not found."
 
     def show_student(self):
         enrolled_courses = ', '.join([course.code for course in self.classes])
         return f"ID: {self.id}, Name: {self.name}, Enrolled Classes: {enrolled_courses}"
 
+    def pay_fees(self, amount):
+        if amount >= 300:
+            self.fees_paid = True
+            return f"Fees of ${amount} have been paid by {self.name}."
+        else:
+            return "Error: Insufficient fee amount. Minimum fee is $300."
 
-# تعريف الجدول (Schedule)
+    def show_grades(self):
+        if not self.__grades:
+            return "No grades available."
+        return "\n".join([f"{course.name}: {grade}" for course, grade in self.__grades.items()])
+
+    def set_grade(self, course, grade):
+        self.__grades[course] = grade
+
+class Instructor:
+    def __init__(self, name):
+        self.name = name
+
+    def mark_attendance(self, course, student, present=True):
+        if student.id not in course.attendance:
+            course.attendance[student.id] = []
+        course.attendance[student.id].append(present)
+
 class Schedule:
     def create_schedule(self):
         self.courses = {
@@ -81,23 +151,24 @@ class Schedule:
         }
         self.schedule_times = ["8:30 AM - 10:30 AM", "10:30 AM - 12:30 PM", "12:30 PM - 2:30 PM", "2:30 PM - 4:30 PM"]
 
-        # إعداد أسماء المواد في الجدول
-        self.courses["Sunday"][0].create_course("Data Structures", "CS101")
-        self.courses["Sunday"][1].create_course("AI", "CS102")
-        self.courses["Sunday"][2].create_course("Web Development", "CS103")
-        self.courses["Sunday"][3].create_course("Mathematics", "CS104")
-        self.courses["Monday"][0].create_course("Machine Learning", "CS105")
-        self.courses["Monday"][1].create_course("Cyber Security", "CS106")
-        self.courses["Monday"][2].create_course("Cloud Computing", "CS107")
-        self.courses["Monday"][3].create_course("Game Development", "CS108")
-        self.courses["Tuesday"][0].create_course("Databases", "CS109")
-        self.courses["Tuesday"][1].create_course("Networks", "CS110")
-        self.courses["Tuesday"][2].create_course("Operating Systems", "CS111")
-        self.courses["Tuesday"][3].create_course("Algorithms", "CS112")
-        self.courses["Wednesday"][0].create_course("Software Engineering", "CS113")
-        self.courses["Wednesday"][1].create_course("Web Design", "CS114")
-        self.courses["Wednesday"][2].create_course("Mobile Apps", "CS115")
-        self.courses["Wednesday"][3].create_course("Big Data", "CS116")
+        # Add courses to the schedule
+        self.courses["Sunday"][0].create_course("Data Structures", "CS101", priority="High", level="Beginner", fee=300)
+        self.courses["Sunday"][1].create_course("AI", "CS102", prerequisites=["Data Structures"], fee=300)
+        self.courses["Monday"][0].create_course("Machine Learning", "CS105", prerequisites=["AI"], fee=300)
+        self.courses["Monday"][1].create_course("Cyber Security", "CS106", fee=250)
+
+    def search_courses(self, criteria, value):
+        results = []
+        for day, courses in self.courses.items():
+            for course in courses:
+                if getattr(course, criteria) == value:
+                    results.append(course)
+        return results
+
+    def generate_report(self, course):
+        print(f"Report for {course.name}:")
+        print(f"Enrolled students: {course.enrolled_students}")
+        print(f"Waiting list: {len(course.waiting_list)}")
 
     def display_schedule(self, day):
         schedule_str = f"Schedule for {day}:\n"
@@ -107,43 +178,103 @@ class Schedule:
             for i in range(len(courses)):
                 time = self.schedule_times[i]
                 course = courses[i]
-                schedule_str += f"{time}: {course.show_course()}\n"
+                schedule_str += f"{time}: {course.show_course()}"
+                if course.enrolled_students >= course.max_students:
+                    schedule_str += " - Full"
+                schedule_str += "\n"
         else:
             schedule_str += "No courses available.\n"
 
         return schedule_str
 
-    def register_student_in_courses(self, student):
-        registered = 0
-        for day, courses in self.courses.items():
-            for course in courses:
-                if registered < student.max_classes:
-                    result = student.enroll_in_class(course)
-                    if "Successfully" in result:
-                        registered += 1
+# Main Interface
+def main_interface():
+    access_code = "UOF2024-5"
+    user_code = input("Enter access code: ")
+
+    if user_code == access_code:
+        print("Access Granted.")
+        # Initialize schedule and student
+        student1 = Student()
+        student1.set_student("Ali")
+        schedule = Schedule()
+        schedule.create_schedule()
+
+        # Display some sample grades for demonstration
+        student1.set_grade(schedule.courses["Sunday"][0], "A")
+        student1.set_grade(schedule.courses["Sunday"][1], "B+")
+        student1.set_grade(schedule.courses["Monday"][1], "A-")
+
+        # Display options
+        while True:
+            print("\n1. Pay Fees")
+            print("2. Enroll in Course")
+            print("3. Drop a Course")
+            print("4. Show Full Schedule")
+            print("5. Show Attendance for a Course")
+            print("6. Show Activity Log")
+            print("7. Show Grades")
+            print("8. Search Courses")
+            print("9. Generate Report")
+            print("10. Exit")
+            choice = input("Select an option: ")
+
+            if choice == "1":
+                fee_amount = int(input("Enter fee amount: "))
+                print(student1.pay_fees(fee_amount))
+
+            elif choice == "2":
+                day = input("Enter day of the course: ")
+                time = input("Enter time slot (e.g., 8:30 AM - 10:30 AM): ")
+                course = schedule[time]
+                if course and student1.fees_paid:
+                    print(student1.enroll_in_class(course))
                 else:
-                    break
-            if registered >= student.max_classes:
+                    print("Error: Please pay your fees first.")
+
+            elif choice == "3":
+                course_code = input("Enter course code to drop: ")
+                print(student1.drop_class(course_code))
+
+            elif choice == "4":
+                for day in ["Sunday", "Monday", "Tuesday", "Wednesday"]:
+                    print(schedule.display_schedule(day))
+
+            elif choice == "5":
+                course_code = input("Enter course code to view attendance: ")
+                for day, courses in schedule.courses.items():
+                    for course in courses:
+                        if course.code == course_code:
+                            print(course.attendance)
+                            break
+
+            elif choice == "6":
+                print(student1.show_activity_log())
+
+            elif choice == "7":
+                print(student1.show_grades())
+
+            elif choice == "8":
+                search_criteria = input("Enter search criteria (level, instructor, etc.): ")
+                search_value = input(f"Enter value for {search_criteria}: ")
+                result = schedule.search_courses(search_criteria, search_value)
+                for course in result:
+                    print(course.show_course())
+
+            elif choice == "9":
+                course_code = input("Enter course code for report: ")
+                for day, courses in schedule.courses.items():
+                    for course in courses:
+                        if course.code == course_code:
+                            schedule.generate_report(course)
+                            break
+
+            elif choice == "10":
+                print("Exiting...")
                 break
-        return f"Student registered in {registered} classes."
 
+            else:
+                print("Invalid choice, try again.")
 
-# تجربة الكود
-student1 = Student()
-student1.set_student("Ali")
-
-schedule = Schedule()
-schedule.create_schedule()
-
-# عرض جدول يوم الاثنين
-print(schedule.display_schedule("Monday"))
-
-# تسجيل الطالب في المواد
-result = schedule.register_student_in_courses(student1)
-print(result)
-
-# عرض معلومات الطالب
-print(student1.show_student())
-
-# عرض جدول يوم الأربعاء
-print(schedule.display_schedule("Wednesday"))
+# Run the interface
+main_interface()
