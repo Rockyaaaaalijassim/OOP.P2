@@ -37,6 +37,12 @@ class Course(AbstractCourse):
         self.feedback = []
         self.instructor = None
 
+
+
+
+        def __repr__(self):
+            return f"Course({self.name}, Code: {self.code}, Fee: ${self.fee}, Max Students: {self.max_students})"
+
     def enroll_student(self, student):
         # Check if the student has completed the prerequisites
         if not all(prerequisite in [course.name for course in student.classes] for prerequisite in self.prerequisites):
@@ -82,7 +88,7 @@ class Student:
         if not self.fees_paid:
             return "Error: You cannot enroll in classes until fees are paid."
 
-        # Check for prerequisites
+       
         if not all(prerequisite in [course.name for course in self.classes] for prerequisite in course.prerequisites):
             return f"You must complete prerequisites for {course.name} before enrolling."
 
@@ -105,7 +111,7 @@ class Student:
                 self.classes.remove(course)
                 course.enrolled_students -= 1
                 self.log_activity(f"Dropped {course.name}.")
-                # If someone is on the waiting list, enroll the next student
+
                 if course.waiting_list:
                     next_student = course.waiting_list.pop(0)
                     next_student.enroll_in_class(course)
@@ -144,14 +150,14 @@ class Instructor:
 class Schedule:
     def create_schedule(self):
         self.courses = {
-            "Sunday": [Course(), Course(), Course(), Course()],
-            "Monday": [Course(), Course(), Course(), Course()],
-            "Tuesday": [Course(), Course(), Course(), Course()],
-            "Wednesday": [Course(), Course(), Course(), Course()]
+            "Sunday": [Course(), Course(), Course()],
+            "Monday": [Course(), Course(), Course()],
+            "Tuesday": [Course(), Course(), Course()],
+            "Wednesday": [Course(), Course(), Course()]
         }
-        self.schedule_times = ["8:30 AM - 10:30 AM", "10:30 AM - 12:30 PM", "12:30 PM - 2:30 PM", "2:30 PM - 4:30 PM"]
+        self.schedule_times = ["8:30 AM - 10:30 AM", "10:30 AM - 12:30 PM", "12:30 PM - 2:30 PM"]
 
-        # Add courses to the schedule
+
         self.courses["Sunday"][0].create_course("Data Structures", "CS101", priority="High", level="Beginner", fee=300)
         self.courses["Sunday"][1].create_course("AI", "CS102", prerequisites=["Data Structures"], fee=300)
         self.courses["Monday"][0].create_course("Machine Learning", "CS105", prerequisites=["AI"], fee=300)
@@ -187,7 +193,7 @@ class Schedule:
 
         return schedule_str
 
-# Main Interface
+# الInterface
 def main_interface():
     access_code = "UOF2024-5"
     user_code = input("Enter access code: ")
@@ -200,7 +206,7 @@ def main_interface():
         schedule = Schedule()
         schedule.create_schedule()
 
-        # Display some sample grades for demonstration
+        # تستخدم فقط كمثال الدرجات للعرض ف الطالب في حاله تسجل اوليه
         student1.set_grade(schedule.courses["Sunday"][0], "A")
         student1.set_grade(schedule.courses["Sunday"][1], "B+")
         student1.set_grade(schedule.courses["Monday"][1], "A-")
@@ -276,5 +282,11 @@ def main_interface():
             else:
                 print("Invalid choice, try again.")
 
-# Run the interface
+
+
+student1 = Student()
+student1.set_student("Ali")
+
 main_interface()
+print(repr(student1))
+print(student1)
