@@ -1,0 +1,283 @@
+from abc import ABC, abstractmethod
+
+class AbstractCourse(ABC):
+    @abstractmethod
+    def create_course(self, name, code, credit_hours=3, max_students=25, priority="Normal"):
+        pass
+
+    @abstractmethod
+    def show_course(self):
+        pass
+
+class Course(AbstractCourse):
+    def __init__(self):
+        self.enrolled_students = 0
+        self.max_students = 25
+        self.students_grades = {}
+
+    def create_course(self, name, code, credit_hours=3, max_students=25, priority="Normal"):
+        self.name = name
+        self.code = code
+        self.credit_hours = credit_hours
+        self.max_students = max_students
+        self.priority = priority
+
+    def enroll_student(self, student_id):
+        if self.enrolled_students < self.max_students:
+            self.enrolled_students += 1
+            self.students_grades[student_id] = {"quizzes": 0, "assignments": 0, "reports": 0, "final": 0}
+            return f"Student {student_id} enrolled in {self.name}."
+        else:
+            return f"Course {self.name} is full."
+
+    def show_course(self):
+        return f"{self.name} ({self.code}), Priority: {self.priority}, Credit Hours: {self.credit_hours}, Enrolled: {self.enrolled_students}/{self.max_students}"
+
+    def set_grades(self, student_id, quizzes, assignments, reports, final):
+        if student_id in self.students_grades:
+            self.students_grades[student_id] = {
+                "quizzes": quizzes,
+                "assignments": assignments,
+                "reports": reports,
+                "final": final
+            }
+            return f"Grades updated for {student_id} in {self.name}."
+        return "Student not found."
+
+    def get_grades(self, student_id):
+        if student_id in self.students_grades:
+            grades = self.students_grades[student_id]
+            s_total = grades["quizzes"] + grades["assignments"] + grades["reports"]
+            final = grades["final"]
+            # Determine status
+            if s_total < 14:
+                status = "Failed due to low performance in continuous assessment."
+            elif final == 50:
+                status = "Excellent"
+            elif final >= 40:
+                status = "Very Good"
+            elif final >= 30:
+                status = "Good"
+            elif final >= 25:
+                status = "Pass"
+            else:
+                status = "Failed due to low final exam score."
+            return {
+                "quizzes": grades["quizzes"],
+                "assignments": grades["assignments"],
+                "reports": grades["reports"],
+                "final": final,
+                "status": status
+            }
+        return "Grades not available for the student."
+
+    def available_slots(self):
+        return self.max_students - self.enrolled_students
+
+class Student:
+    def __init__(self, student_id, name):
+        self.id = student_id
+        self.name = name
+        self.enrolled_courses = []
+        self.payment_status = False  # Added payment status
+
+    def enroll(self, course):
+        if len(self.enrolled_courses) < 5:
+            result = course.enroll_student(self.id)
+            if "enrolled" in result:
+                self.enrolled_courses.append(course)
+            return result
+        return "You have reached the maximum allowed courses (5)."
+
+    def show_grades(self):
+        if not self.enrolled_courses:
+            return "No courses enrolled."
+        grades_report = f"Grades for {self.name} ({self.id}):\n"
+        for course in self.enrolled_courses:
+            grades = course.get_grades(self.id)
+            if isinstance(grades, dict):
+                grades_report += f"{course.name} ({course.code}): {grades}\n"
+            else:
+                grades_report += f"{course.name} ({course.code}): {grades}\n"
+        return grades_report
+
+    def make_payment(self):
+        # Method to simulate making a payment
+        self.payment_status = True
+        return f"Payment successful for {self.name}."
+
+class Schedule:
+    def __init__(self):
+        self.courses = {
+            "Sunday": [
+                ("8:30 AM - 10:30 AM", Course()),
+                ("10:30 AM - 12:30 PM", Course()),
+                ("12:30 PM - 2:30 PM", Course())
+            ],
+            "Monday": [
+                ("8:30 AM - 10:30 AM", Course()),
+                ("10:30 AM - 12:30 PM", Course()),
+                ("12:30 PM - 2:30 PM", Course())
+            ],
+            "Tuesday": [
+                ("8:30 AM - 10:30 AM", Course()),
+                ("10:30 AM - 12:30 PM", Course()),
+                ("12:30 PM - 2:30 PM", Course())
+            ],
+            "Wednesday": [
+                ("8:30 AM - 10:30 AM", Course()),
+                ("10:30 AM - 12:30 PM", Course()),
+                ("12:30 PM - 2:30 PM", Course())
+            ]
+        }
+        self._initialize_courses()
+
+    def _initialize_courses(self):
+        # Initializing 3 courses for each day
+        self.courses["Sunday"][0][1].create_course("Data Structures", "CS101", priority="High")
+        self.courses["Sunday"][1][1].create_course("AI", "CS102")
+        self.courses["Sunday"][2][1].create_course("Cyber Security", "CS103")
+
+        self.courses["Monday"][0][1].create_course("Machine Learning", "CS201")
+        self.courses["Monday"][1][1].create_course("Networks", "CS202")
+        self.courses["Monday"][2][1].create_course("Web Development", "CS203")
+
+        self.courses["Tuesday"][0][1].create_course("Databases", "CS301")
+        self.courses["Tuesday"][1][1].create_course("Cloud Computing", "CS302")
+        self.courses["Tuesday"][2][1].create_course("Software Engineering", "CS303")
+
+        self.courses["Wednesday"][0][1].create_course("Operating Systems", "CS401")
+        self.courses["Wednesday"][1][1].create_course("Computer Architecture", "CS402")
+        self.courses["Wednesday"][2][1].create_course("Data Science", "CS403")
+
+    def display_schedule(self, day=None):
+        if day:
+            if day not in self.courses:
+                return "Invalid day."
+            schedule_str = f"Schedule for {day}:\n"
+            for time_slot, course in self.courses[day]:
+                schedule_str += f"{time_slot}: {course.show_course() if course else 'No Course'}\n"
+            return schedule_str
+        else:
+            schedule_str = "Full Schedule:\n"
+            for day, day_courses in self.courses.items():
+                schedule_str += f"{day}:\n"
+                for time_slot, course in day_courses:
+                    schedule_str += f"{time_slot}: {course.show_course() if course else 'No Course'}\n"
+            return schedule_str
+
+    def update_course(self, day, old_time_slot, new_time_slot, course):
+        for i, (slot, _) in enumerate(self.courses.get(day, [])):
+            if slot == old_time_slot:
+                self.courses[day][i] = (new_time_slot, course)
+                return f"Course time updated from {old_time_slot} to {new_time_slot}."
+        return "Course not found."
+
+    def remove_course(self, day, time_slot):
+        for i, (slot, _) in enumerate(self.courses.get(day, [])):
+            if slot == time_slot:
+                self.courses[day][i] = (slot, None)
+                return f"Course removed from {day} at {time_slot}."
+        return "Course not found."
+
+    def set_holiday(self, day):
+        if day in self.courses:
+            self.courses[day] = []
+            return f"Holiday set for {day}."
+        return "Invalid day."
+
+# Main Interface
+def main_interface():
+    access_code = "UOF2024-5"
+    user_code = input("Enter access code: ")
+    if user_code == access_code:
+        print("Access Granted.")
+        schedule = Schedule()
+        student = Student("UOB-1001", "Ali")
+        
+        # Automatically setting grades for testing purposes
+        for day, day_courses in schedule.courses.items():
+            for time_slot, course in day_courses:
+                if course:
+                    # Automatically adding grades for students (you can modify these values)
+                    course.set_grades(student.id, quizzes=12, assignments=10, reports=8, final=40)
+
+        while True:
+            print("\n1. Display Full Schedule")
+            print("2. Display Schedule for a Specific Day")
+            print("3. Enroll in a Course")
+            print("4. Set Student Grades (Manually)")
+            print("5. Show Student Grades")
+            print("6. Update Course Time")
+            print("7. Remove Course")
+            print("8. Set Holiday")
+            print("9. Make Payment")
+            print("10. Exit")
+            choice = input("Select an option: ")
+
+            if choice == "1":
+                print(schedule.display_schedule())
+            elif choice == "2":
+                day = input("Enter day (Sunday, Monday, Tuesday, Wednesday): ")
+                print(schedule.display_schedule(day))
+            elif choice == "3":
+                day = input("Enter day (Sunday, Monday, Tuesday, Wednesday): ")
+                time_slot = input("Enter time slot (e.g., 8:30 AM - 10:30 AM): ")
+                # Find the corresponding course based on the input
+                for time, course in schedule.courses.get(day, []):
+                    if time == time_slot and course.available_slots() > 0:
+                        print(student.enroll(course))
+                        break
+                else:
+                    print("Course is full or invalid time slot.")
+            elif choice == "4":
+                course_code = input("Enter course code: ")
+                student_id = input("Enter student ID: ")
+                quizzes = int(input("Enter quizzes grade: "))
+                assignments = int(input("Enter assignments grade: "))
+                reports = int(input("Enter reports grade: "))
+                final = int(input("Enter final exam grade: "))
+                for day_courses in schedule.courses.values():
+                    for time_slot, course in day_courses:
+                        if course.code == course_code:
+                            print(course.set_grades(student_id, quizzes, assignments, reports, final))
+                            break
+                else:
+                    print("Course not found.")
+            elif choice == "5":
+                # Check payment status before showing grades
+                if not student.payment_status:
+                    print("Please make the payment first to view grades.")
+                else:
+                    print(student.show_grades())
+            elif choice == "6":
+                day = input("Enter day (Sunday, Monday, Tuesday, Wednesday): ")
+                old_time = input("Enter old time slot (e.g., 8:30 AM - 10:30 AM): ")
+                new_time = input("Enter new time slot (e.g., 10:30 AM - 12:30 PM): ")
+                for day_courses in schedule.courses.get(day, []):
+                    for i, (time_slot, _) in enumerate(day_courses):
+                        if time_slot == old_time:
+                            print(schedule.update_course(day, old_time, new_time, schedule.courses[day][i][1]))
+                            break
+                else:
+                    print("Time slot not found.")
+            elif choice == "7":
+                day = input("Enter day (Sunday, Monday, Tuesday, Wednesday): ")
+                time_slot = input("Enter time slot to remove (e.g., 8:30 AM - 10:30 AM): ")
+                print(schedule.remove_course(day, time_slot))
+            elif choice == "8":
+                day = input("Enter day (Sunday, Monday, Tuesday, Wednesday): ")
+                print(schedule.set_holiday(day))
+            elif choice == "9":
+                # Make payment
+                print(student.make_payment())  # Calling the make_payment method to update payment status
+            elif choice == "10":
+                print("Exiting... Goodbye!")
+                break
+            else:
+                print("Invalid choice. Please try again.")
+    else:
+        print("Invalid access code.")
+
+if __name__ == "__main__":
+    main_interface()
